@@ -1,0 +1,176 @@
+------------------------1 update check-Out
+
+select * from dormitory1;
+ALTER TABLE dormitory1 add Check_Out DATE;
+UPDATE dormitory1 
+set Check_Out=Check_In;
+start transaction;
+update dormitory1
+set Check_Out=DATE_ADD(Check_Out, INTERVAL 3 MONTH)
+where Contribution>=360000;
+update dormitory1
+SET Check_Out=DATE_ADD(Check_Out, INTERVAL 3 MONTH)
+WHERE Contribution>=720000;
+ROLLBACK;
+------------------------2 hospital reference
+
+SELECT hospitals2.Student_ID,hospital1.Hospital_Name ,hospital1.Address FROM hospital1 JOIN hospitals2
+on hospitals2.Hospital_ID=hospital1.Hospitals_ID;
+
+-------------------------3 update of quantity in club table 
+
+select * from clubs;
+update students1
+set Club_name="Mountain Kings"
+where Student_ID=17;
+UPDATE clubs, students1
+set clubs.Student_Quantity=(SELECT COUNT(students1.Club_name) FROM students1 WHERE students1.Club_name=clubs.Club_name);
+
+-------------------------4 updating salary of professors
+
+UPDATE professors1, grades
+set Salary= Salary+200000
+where professors1.Prof_ID=grades.Prof_ID and grades.Grade>=90;
+select * from professors1,grades
+where professors1.Prof_ID=grades.Prof_ID;
+
+--------------------------5 schedule for professor 
+
+select classes.Course_code,courses.Course_name,classes.Class_ID, classes.Time from classes, courses
+where Prof_ID=56 and courses.Course_Code=classes.Course_Code;
+
+--------------------------6 quantity of boys and girls in dormitory as a VIEW
+
+drop view View_See;
+select * from View_See;
+CREATE VIEW View_See AS 
+SELECT Gender, COUNT(Student_ID) from dormitory1
+group by Gender;
+---------------------------7 transaction for payers (does not count as a query)
+START TRANSACTION;
+UPDATE payers
+set Bill=Bill-Debt
+where Bill>Debt;
+UPDATE payers
+set Debt=0
+where Bill>Debt;
+rollback;
+--------------------------8 TRIGGER UPDATE
+drop trigger update_trigger;
+update students1
+set Grant_type="None"
+where Student_ID=99;
+CREATE TRIGGER update_trigger
+AFTER UPDATE ON students1
+for each row 
+delete FROM students_scholarships
+where students_scholarships.Student_ID=old.Student_ID;
+---------------------------9 TRIGGER DELETE
+delete from students1
+where Student_ID=4;
+select * from students1
+where Student_ID=4;
+select * from clubs;
+CREATE TRIGGER delete_trigger
+after delete on students1
+for each row 
+update clubs, students1
+set Header_name=CONCAT(students1.First_name, ' ', students1.last_name)
+where CONCAT(old.First_name, ' ', old.last_name) =clubs.Header_name and old.Club_name=students1.Club_name;
+---------------------------10 TRIGGER INSERT
+drop trigger student_trigger;
+insert into students1 values(101, 'Alisher','Maratuly', 2,'Information System', 3.1,'87756824600',"None", 'state grant');
+select * from students1
+where Student_ID=101;
+select * from dormitory1
+where Student_ID=101;
+CREATE TRIGGER student_trigger
+after insert on students1
+for each row 
+insert into dormitory1 values(new.Student_ID,new.Year,"Male",321673, "3 month", "15.10.2022");
+----------------------------11 INDEXING
+alter table students1
+drop index last_name_idx;
+CREATE INDEX last_name_first_name_idx
+on students1(last_name, first_name);
+show indexes from students2;
+select * from students1
+where  last_name="Yves" AND First_name="Mikkel";
+
+----------------------------12 STUDENTS OF certain Professor 
+
+SELECT students1.Student_ID, students1.First_name, students1.Last_name, attendance.Course_Code from students1, classes, attendance
+where classes.Prof_ID=90 and attendance.class_ID=classes.Class_ID and attendance.Student_ID=students1.Student_ID;
+
+----------------------------13 schedule of certain student
+
+select classes.Time, classes.class_id, professors1.First_name, professors1.Last_name, attendance.Course_code from professors1, attendance, classes
+where attendance.Student_ID= 11 and classes.Prof_ID = professors1.Prof_ID and classes.Course_Code=attendance.Course_code and classes.class_id = attendance.Class_ID;
+
+----------------------------15  cancellation of absence for student who has diseases 
+
+update attendance, hospitals2
+set Present_quantity=Present_quantity+Absence_quantity, Absence_quantity=0
+where hospitals2.diseases != 'none' and attendance.Student_ID=hospitals2.Student_ID;
+
+select * from attendance;
+
+----------------------------16  total payment for retakes
+
+select students1.Student_ID, students1.First_name, students1.Last_name, courses.Course_name, courses.Credits*22000 as Retake  from students1, courses,grades
+where students1.Student_ID=grades.Student_ID and grades.Grade<50 and courses.Course_Code=grades.Course_Code
+UNION
+select students1.Student_ID, students1.First_name, students1.Last_name, courses.Course_name, courses.Credits*22000 as Retake  from students1, courses,attendance
+where students1.Student_ID=attendance.Student_ID and courses.Course_Code=attendance.Course_Code and attendance.Absence_quantity/(attendance.Absence_quantity+attendance.Present_quantity)*100>30;
+
+----------------------------17 students who has not taken any courses
+
+
+select Student_ID, First_name, Last_name from students1
+where  NOT EXISTS (select Student_ID from attendance WHERE students1.Student_ID=attendance.Student_ID);
+
+----------------------------18 updating old student quantity in faculties 
+
+select * from faculties;
+
+update faculties,students1,students2
+set Student_Quantity = (select COUNT(students1.major) from students1, students2 where students1.major = students2.major and faculties.Faculty_name=students2.Faculty);
+
+rollback;
+
+----------------------------19 grades table like in oldmysdu
+
+select attendance.Course_Code, courses.Course_name, courses.Credits, CONCAT((attendance.Absence_quantity/(attendance.Absence_quantity+attendance.Present_quantity)*100), ' %') as Absense, grades.Grade from attendance, grades, courses, students1
+where courses.Course_code=attendance.Course_Code  and courses.Course_code=grades.Course_Code and attendance.Student_ID = grades.Student_ID and students1.Student_ID=11 and students1.Student_ID=grades.Student_ID;
+
+----------------------------20 max GPA from all years of students
+
+select student_id, Year, GPA from students1
+where gpa = (select max(gpa) from students1 where year=1 and Grant_type!='state grant')
+union 
+select student_id,Year, GPA from students1
+where gpa = (select max(gpa) from students1 where year=2 and Grant_type!='state grant') 
+UNION
+select student_id,Year, GPA from students1
+where gpa = (select max(gpa) from students1 where year=3 and Grant_type!='state grant')
+UNION
+select student_id,Year,  GPA from students1
+where gpa = (select max(gpa) from students1 where year=4) and Grant_type!='state grant';
+
+----------------------------21 updating student quantity for classes
+
+update classes, attendance 
+set classes.Student_number = (select count(*) from attendance where classes.Class_ID=attendance.Class_ID);
+
+select * from classes;
+
+--------------------------------22 schedule of addresses for all students by their student_ID
+
+select hospitals2.Student_ID, hospital1.hospital_name, hospital1.Address from hospital1, hospitals2
+where hospital1.Hospitals_ID=hospitals2.Hospital_ID;
+
+----------------------------23 attendance table like in oldmysdu
+
+select attendance.Course_Code, courses.Course_name, attendance.Present_quantity, attendance.Absence_quantity, CONCAT((attendance.Absence_quantity/(attendance.Absence_quantity+attendance.Present_quantity)*100), ' %') as Absense from attendance, courses
+where courses.Course_Code=attendance.Course_Code and attendance.Student_ID=11;
+
