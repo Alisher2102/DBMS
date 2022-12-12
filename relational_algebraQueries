@@ -1,0 +1,13 @@
+2) π hospitals2 . student_id, hospital1 . hospital_name, hospital1 . address (hospital1 ⋈ hospitals2 . hospital_id = hospital1 . hospitals_id hospitals2)
+5) π classes . course_code, courses . course_name, classes . class_id, classes . time
+ σ prof_id = 56 AND courses . course_code = classes . course_code (classes × courses)
+12) π students1 . student_id, students1 . first_name, students1 . last_name, attendance . course_code
+ σ classes . prof_id = 90 AND attendance . class_id = classes . class_id AND attendance . student_id = students1 . student_id (students1 × classes × attendance)
+13) π classes . time, classes . class_id, professors1 . first_name, professors1 . last_name, attendance . course_code
+ σ attendance . student_id = 11 AND classes . prof_id = professors1 . prof_id AND classes . course_code = attendance . course_code AND classes . class_id = attendance . class_id (professors1 × attendance × classes)
+16) π students1 . student_id, students1 . first_name, students1 . last_name, courses . course_name, courses . credits * 22000 → retake
+ σ students1 . student_id = grades . student_id AND grades . grade < 50 AND courses . course_code = grades . course_code (students1 × courses × grades) ∪
+  π students1 . student_id, students1 . first_name, students1 . last_name, courses . course_name, courses . credits * 22000 → retake
+   σ students1 . student_id = attendance . student_id AND courses . course_code = attendance . course_code AND attendance . absence_quantity / (attendance . absence_quantity + attendance . present_quantity)* 100 > 30 (students1 × courses × attendance)
+22) π hospitals2 . student_id, hospital1 . hospital_name, hospital1 . address
+ σ hospital1 . hospitals_id = hospitals2 . hospital_id (hospital1 × hospitals2)
